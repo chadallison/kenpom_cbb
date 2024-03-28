@@ -219,6 +219,8 @@ sprintf("Modeling data: %s games, %s variables", nrow(modeling_results), ncol(mo
 
     ## [1] "Modeling data: 5708 games, 20 variables"
 
+### Matchup Data Generation Function
+
 <details>
 <summary>
 View Code
