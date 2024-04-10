@@ -21,8 +21,6 @@ knitr::knit_hooks$set(source = function(x, options) {
 ```
 
 ```{r message = F, warning = F, include = F, fold_code = T}
-tictoc::tic()
-
 library(tidyverse)
 library(randomForest)
 library(tvthemes)
@@ -38,7 +36,9 @@ theme_custom = theme_avatar() +
         panel.grid.minor = element_line(linewidth = 0.5, colour = "#DFDAD1"))
 
 theme_set(theme_custom)
-cbd_login(username = Sys.getenv("USER"), password = Sys.getenv("PW"))
+my_user = Sys.getenv("USER")
+my_pw = Sys.getenv("PW")
+cbd_login(username = my_user, password = my_pw)
 ```
 
 ### Data Acquisition
@@ -263,6 +263,11 @@ make_game_prediction = function(home_team, away_team) {
 }
 
 neutral_predict = function(home_team, away_team) {
+  if (home_team == "" & away_team == "") return("Select two teams to predict game outcome")
+  if ((home_team == "" & away_team != "") | (home_team != "" & away_team == "")) {
+    return("Select two teams to predcit game outcome")
+  }
+  if (home_team == away_team) return("Please select different teams")
   game_data = generate_matchup_data(home_team = home_team, away_team = away_team)
   other_data = generate_matchup_data(home_team = away_team, away_team = home_team)
   probs1 = predict(rf_model, game_data, type = "prob")[2]
@@ -273,23 +278,98 @@ neutral_predict = function(home_team, away_team) {
   } else if (ovr > 50) {
     return(sprintf("%s def. %s (%s%%)", home_team, away_team, ovr))
   } else if (ovr < 50) {
-    return(sprintf("%s def. %s (%s%%)", away_team, home_team, 1 - ovr))
+    return(sprintf("%s def. %s (%s%%)", away_team, home_team, 100 - ovr))
   }
 }
 ```
 
-### Predicting Sweet 16
+### Predicting National Championship
 
 ```{r echo = F}
-print("Today's games")
-neutral_predict(home_team = "Arizona", away_team = "Clemson")
-neutral_predict(home_team = "Connecticut", away_team = "San Diego St.")
-neutral_predict(home_team = "North Carolina", away_team = "Alabama")
-neutral_predict(home_team = "Iowa St.", away_team = "Illinois")
-print("----------------------------------------------")
-print("Tomorrow's games")
-neutral_predict(home_team = "Marquette", away_team = "North Carolina St.")
-neutral_predict(home_team = "Purdue", away_team = "Gonzaga")
-neutral_predict(home_team = "Houston", away_team = "Duke")
-neutral_predict(home_team = "Tennessee", away_team = "Creighton")
+neutral_predict(home_team = "Connecticut", away_team = "Purdue")
 ```
+
+```{r}
+# suppressMessages(library(shiny))
+# 
+# ui <- fluidPage(
+#   titlePanel("NCAAT Game Prediction"),
+#   
+#   sidebarLayout(
+#     sidebarPanel(
+#       selectInput("home_team", "Home Team:", choices = c("", torvik_teams)),
+#       selectInput("away_team", "Away Team:", choices = c("", torvik_teams))
+#     ),
+#     
+#     mainPanel(
+#       textOutput("prediction")
+#     )
+#   )
+# )
+# 
+# server <- function(input, output) {
+#   output$prediction <- renderText({
+#     neutral_predict(input$home_team, input$away_team)
+#   })
+# }
+# 
+# shinyApp(ui = ui, server = server)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
