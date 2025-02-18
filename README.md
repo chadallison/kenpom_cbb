@@ -185,6 +185,82 @@ fig_data |>
 
 ![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
+### Chad’s NPR Metric
+
+<details>
+<summary>
+View Code
+</summary>
+
+``` r
+get_team_off_ppg = function(tm) {
+  home = game_results |> filter(home_team == tm) |> pull(home_score)
+  away = game_results |> filter(away_team == tm) |> pull(away_score)
+  return(round(mean(c(home, away)), 3))
+}
+
+get_team_def_ppg = function(tm) {
+  home = game_results |> filter(home_team == tm) |> pull(away_score)
+  away = game_results |> filter(away_team == tm) |> pull(home_score)
+  return(round(mean(c(home, away)), 3))
+}
+
+all_teams = sort(unique(c(game_results$home_team, game_results$away_team)))
+
+team_ppg = data.frame(team = all_teams) |>
+  mutate(off_ppg = sapply(team, get_team_off_ppg),
+         def_ppg = sapply(team, get_team_def_ppg))
+
+npr_results = game_results |>
+  inner_join(team_ppg, by = c("home_team" = "team")) |>
+  rename(home_off_ppg = off_ppg, home_def_ppg = def_ppg) |>
+  inner_join(team_ppg, by = c("away_team" = "team")) |>
+  rename(away_off_ppg = off_ppg, away_def_ppg = def_ppg) |>
+  mutate(home_exp = (home_off_ppg + away_def_ppg) / 2,
+         away_exp = (away_off_ppg + home_def_ppg) / 2,
+         home_off_npr = home_score - home_exp,
+         home_def_npr = away_exp - away_score,
+         away_off_npr = away_score - away_exp,
+         away_def_npr = home_exp - home_score)
+
+get_team_off_npr = function(tm) {
+  home = npr_results |> filter(home_team == tm) |> pull(home_off_npr)
+  away = npr_results |> filter(away_team == tm) |> pull(away_off_npr)
+  return(round(mean(c(home, away)), 3))
+}
+
+get_team_def_npr = function(tm) {
+  home = npr_results |> filter(home_team == tm) |> pull(home_def_npr)
+  away = npr_results |> filter(away_team == tm) |> pull(away_def_npr)
+  return(round(mean(c(home, away)), 3))
+}
+
+team_npr = data.frame(team = all_teams) |>
+  mutate(off_npr = sapply(team, get_team_off_npr),
+         def_npr = sapply(team, get_team_def_npr),
+         ovr_npr = off_npr + def_npr) |>
+  arrange(desc(ovr_npr))
+
+inner_join(
+  x = team_npr |> select(team, ovr_npr) |> mutate(npr_rk = rank(-ovr_npr)),
+  y = kp |> select(team, kp_rank = rk, adj_em),
+  by = "team"
+) |>
+  filter(kp_rank <= 25) |>
+  ggplot(aes(ovr_npr, adj_em)) +
+  geom_point(size = 2, col = "#556d56", shape = "square") +
+  geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dashed") +
+  ggrepel::geom_text_repel(aes(label = substr(team, 1, 4)), size = 3, max.overlaps = 25) +
+  scale_x_continuous(breaks = seq(0, 20, by = 0.5)) +
+  scale_y_continuous(breaks = seq(0, 50, by = 2)) +
+  labs(x = "Chad's Naive Performance Rating (NPR)", y = "KenPom's Net Adj. Efficiency Rating",
+       title = "KenPom Top 25 + NPR", subtitle = "Teams above/below dashed line are better/worse than my NPR metric per KenPom")
+```
+
+</details>
+
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
 ### Building Data for Modeling
 
 <details>
