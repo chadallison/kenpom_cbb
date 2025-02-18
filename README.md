@@ -37,7 +37,7 @@ get_kenpom = function() {
 kp_raw = get_kenpom() |>
   mutate(team = trimws(str_remove_all(team, "\\d+")))
 
-games_raw = cbd_torvik_game_box(year = 2024)
+games_raw = cbd_torvik_game_box(year = 2025)
 print("Data acquisition complete")
 ```
 
@@ -60,14 +60,17 @@ torvik_teams = games_raw |>
   filter(n >= 20) |>
   pull(team)
 
+matched_teams = intersect(kp_teams, torvik_teams)
+unmatched_teams = kp_teams[!kp_teams %in% matched_teams]
+
 kp = kp_raw |>
-  mutate(team = case_when(team == "N.C. State" ~ "North Carolina St.",
-                          team == "Charleston" ~ "College of Charleston",
-                          team == "Louisiana" ~ "Louisiana Lafayette",
-                          team == "Purdue Fort Wayne" ~ "Fort Wayne",
-                          team == "LIU" ~ "LIU Brooklyn",
-                          team == "Saint Francis" ~ "St. Francis PA",
-                          team == "Detroit Mercy" ~ "Detroit",
+  mutate(team = case_when(team == "CSUN" ~ "Cal St. Northridge",
+                          team == "Kansas City" ~ "UMKC",
+                          team == "McNeese" ~ "McNeese St.",
+                          team == "Nicholls" ~ "Nicholls St.",
+                          team == "SIUE" ~ "SIU Edwardsville",
+                          team == "Southeast Missouri" ~ "Southeast Missouri St.",
+                          team == "East Texas A&M" ~ "Texas A&M Commerce",
                           T ~ team))
 
 if (length(intersect(kp$team, torvik_teams)) == length(torvik_teams)) {
@@ -150,7 +153,7 @@ sprintf("%s game results retrieved successfully", nrow(game_results))
 
 </details>
 
-    ## [1] "5708 game results retrieved successfully"
+    ## [1] "4474 game results retrieved successfully"
 
 ### KenPom Top 25
 
@@ -170,7 +173,7 @@ fig_data = kp |>
 
 fig_data |>
   ggplot(aes(reorder(team, adj_em), adj_em)) +
-  geom_col(fill = "black") +
+  geom_col(fill = "#556d56") +
   geom_text(aes(label = adj_em), size = 3, hjust = -0.25) +
   coord_flip(ylim = c(0, max(fig_data$adj_em) * 1.05)) +
   scale_y_continuous(breaks = seq(0, 50, by = 5)) +
@@ -217,7 +220,7 @@ sprintf("Modeling data: %s games, %s variables", nrow(modeling_results), ncol(mo
 
 </details>
 
-    ## [1] "Modeling data: 5708 games, 20 variables"
+    ## [1] "Modeling data: 4474 games, 20 variables"
 
 ### Matchup Data Generation Function
 
@@ -235,10 +238,20 @@ generate_matchup_data = function(home_team, away_team) {
     select(-c(home_team, away_team)))
 }
 
-# generate_matchup_data(home_team = "North Carolina", away_team = "Duke")
+# example output
+generate_matchup_data(home_team = "North Carolina", away_team = "Duke")
 ```
 
 </details>
+
+    ##   home_adj_em home_adj_o home_adj_d home_adj_t home_luck home_sos_adj_em
+    ## 1       15.96      117.1      101.1       71.2    -0.009           12.87
+    ##   home_sos_opp_o home_sos_opp_d home_ncsos_adj_em home_win_pct away_adj_em
+    ## 1          114.9          102.1             13.28    0.5769231        36.5
+    ##   away_adj_o away_adj_d away_adj_t away_luck away_sos_adj_em away_sos_opp_o
+    ## 1      127.5         91       65.6     -0.04            8.34          112.8
+    ##   away_sos_opp_d away_ncsos_adj_em away_win_pct
+    ## 1          104.4               7.2    0.8846154
 
 ### Modeling
 
@@ -248,7 +261,8 @@ View Code
 </summary>
 
 ``` r
-set.seed(1251)
+today_seed = as.numeric(str_remove_all(Sys.Date(), "-"))
+set.seed(today_seed)
 train_index = sample(nrow(modeling_results), 0.7 * nrow(modeling_results))
 train_data = modeling_results[train_index, ]
 test_data = modeling_results[-train_index, ]
@@ -260,7 +274,7 @@ sprintf("Random forest accuracy: %s%%", accuracy)
 
 </details>
 
-    ## [1] "Random forest accuracy: 71.04%"
+    ## [1] "Random forest accuracy: 75.8%"
 
 <details>
 <summary>
@@ -277,7 +291,7 @@ sprintf("Random forest F1: %s%%", f1_score)
 
 </details>
 
-    ## [1] "Random forest F1: 77.64%"
+    ## [1] "Random forest F1: 82.17%"
 
 ### Generating Game Prediction Functions
 
@@ -299,6 +313,11 @@ make_game_prediction = function(home_team, away_team) {
 }
 
 neutral_predict = function(home_team, away_team) {
+  if (home_team == "" & away_team == "") return("Select two teams to predict game outcome")
+  if ((home_team == "" & away_team != "") | (home_team != "" & away_team == "")) {
+    return("Select two teams to predcit game outcome")
+  }
+  if (home_team == away_team) return("Please select different teams")
   game_data = generate_matchup_data(home_team = home_team, away_team = away_team)
   other_data = generate_matchup_data(home_team = away_team, away_team = home_team)
   probs1 = predict(rf_model, game_data, type = "prob")[2]
@@ -309,33 +328,13 @@ neutral_predict = function(home_team, away_team) {
   } else if (ovr > 50) {
     return(sprintf("%s def. %s (%s%%)", home_team, away_team, ovr))
   } else if (ovr < 50) {
-    return(sprintf("%s def. %s (%s%%)", away_team, home_team, 1 - ovr))
+    return(sprintf("%s def. %s (%s%%)", away_team, home_team, 100 - ovr))
   }
 }
 ```
 
 </details>
 
-### Predicting Sweet 16
+### Game Predictor
 
-    ## [1] "Today's games"
-
-    ## [1] "Arizona def. Clemson (65.3%)"
-
-    ## [1] "Connecticut def. San Diego St. (63.2%)"
-
-    ## [1] "North Carolina def. Alabama (63.7%)"
-
-    ## [1] "Iowa St. def. Illinois (56.8%)"
-
-    ## [1] "----------------------------------------------"
-
-    ## [1] "Tomorrow's games"
-
-    ## [1] "Marquette def. North Carolina St. (77.9%)"
-
-    ## [1] "Purdue def. Gonzaga (72.6%)"
-
-    ## [1] "Houston def. Duke (73.5%)"
-
-    ## [1] "Tennessee def. Creighton (59%)"
+    ## [1] "North Carolina def. N.C. State (93.4%)"

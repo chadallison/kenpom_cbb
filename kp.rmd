@@ -27,6 +27,7 @@ library(tvthemes)
 library(janitor)
 library(cbbdata)
 library(rvest)
+library(stringdist) # fuzzy matching
 
 theme_custom = theme_avatar() +
   theme(plot.title = element_text(hjust = 0.5),
@@ -74,9 +75,11 @@ get_kenpom = function() {
 kp_raw = get_kenpom() |>
   mutate(team = trimws(str_remove_all(team, "\\d+")))
 
-games_raw = cbd_torvik_game_box(year = 2024)
+games_raw = cbd_torvik_game_box(year = 2025)
 print("Data acquisition complete")
 ```
+
+
 
 ### Matching Team Names Between Data Sources
 
@@ -88,14 +91,17 @@ torvik_teams = games_raw |>
   filter(n >= 20) |>
   pull(team)
 
+matched_teams = intersect(kp_teams, torvik_teams)
+unmatched_teams = kp_teams[!kp_teams %in% matched_teams]
+
 kp = kp_raw |>
-  mutate(team = case_when(team == "N.C. State" ~ "North Carolina St.",
-                          team == "Charleston" ~ "College of Charleston",
-                          team == "Louisiana" ~ "Louisiana Lafayette",
-                          team == "Purdue Fort Wayne" ~ "Fort Wayne",
-                          team == "LIU" ~ "LIU Brooklyn",
-                          team == "Saint Francis" ~ "St. Francis PA",
-                          team == "Detroit Mercy" ~ "Detroit",
+  mutate(team = case_when(team == "CSUN" ~ "Cal St. Northridge",
+                          team == "Kansas City" ~ "UMKC",
+                          team == "McNeese" ~ "McNeese St.",
+                          team == "Nicholls" ~ "Nicholls St.",
+                          team == "SIUE" ~ "SIU Edwardsville",
+                          team == "Southeast Missouri" ~ "Southeast Missouri St.",
+                          team == "East Texas A&M" ~ "Texas A&M Commerce",
                           T ~ team))
 
 if (length(intersect(kp$team, torvik_teams)) == length(torvik_teams)) {
@@ -180,7 +186,7 @@ fig_data = kp |>
 
 fig_data |>
   ggplot(aes(reorder(team, adj_em), adj_em)) +
-  geom_col(fill = "black") +
+  geom_col(fill = "#556d56") +
   geom_text(aes(label = adj_em), size = 3, hjust = -0.25) +
   coord_flip(ylim = c(0, max(fig_data$adj_em) * 1.05)) +
   scale_y_continuous(breaks = seq(0, 50, by = 5)) +
@@ -227,13 +233,15 @@ generate_matchup_data = function(home_team, away_team) {
     select(-c(home_team, away_team)))
 }
 
-# generate_matchup_data(home_team = "North Carolina", away_team = "Duke")
+# example output
+generate_matchup_data(home_team = "North Carolina", away_team = "Duke")
 ```
 
 ### Modeling
 
 ```{r fold_code = T}
-set.seed(1251)
+today_seed = as.numeric(str_remove_all(Sys.Date(), "-"))
+set.seed(today_seed)
 train_index = sample(nrow(modeling_results), 0.7 * nrow(modeling_results))
 train_data = modeling_results[train_index, ]
 test_data = modeling_results[-train_index, ]
@@ -283,47 +291,11 @@ neutral_predict = function(home_team, away_team) {
 }
 ```
 
-### Predicting National Championship
+### Game Predictor
 
 ```{r echo = F}
-neutral_predict(home_team = "Connecticut", away_team = "Purdue")
+make_game_prediction(home_team = "North Carolina", away_team = "N.C. State")
 ```
-
-```{r}
-# suppressMessages(library(shiny))
-# 
-# ui <- fluidPage(
-#   titlePanel("NCAAT Game Prediction"),
-#   
-#   sidebarLayout(
-#     sidebarPanel(
-#       selectInput("home_team", "Home Team:", choices = c("", torvik_teams)),
-#       selectInput("away_team", "Away Team:", choices = c("", torvik_teams))
-#     ),
-#     
-#     mainPanel(
-#       textOutput("prediction")
-#     )
-#   )
-# )
-# 
-# server <- function(input, output) {
-#   output$prediction <- renderText({
-#     neutral_predict(input$home_team, input$away_team)
-#   })
-# }
-# 
-# shinyApp(ui = ui, server = server)
-```
-
-
-
-
-
-
-
-
-
 
 
 
