@@ -27,6 +27,7 @@ library(tvthemes)
 library(janitor)
 library(cbbdata)
 library(rvest)
+library(readxl)
 library(stringdist) # fuzzy matching
 
 theme_custom = theme_avatar() +
@@ -42,20 +43,25 @@ my_pw = Sys.getenv("PW")
 cbd_login(username = my_user, password = my_pw)
 ```
 
+```{r}
+
+```
+
+
+
 ### Data Acquisition
 
 ```{r fold_code = T}
+my_cols = c(
+  "rk", "team", "conf", "w_l", "adj_em", "adj_o", "adj_o_rk", "adj_d", "adj_d_rk",
+  "adj_t","adj_t_rk", "luck", "luck_rk", "sos_adj_em", "sos_adj_em_rk", "sos_opp_o",
+  "sos_opp_o_rk", "sos_opp_d", "sos_opp_d_rk", "ncsos_adj_em", "ncsos_adj_em_rk"
+)
+
 get_kenpom = function() {
   url = "https://kenpom.com/"
   webpage = read_html(url)
   tbl = (webpage |> html_nodes(css = "#data-area") |> html_table())[[1]]
-  
-  my_cols = c("rk", "team", "conf", "w_l", "adj_em",
-              "adj_o", "adj_o_rk", "adj_d", "adj_d_rk",
-              "adj_t", "adj_t_rk",
-              "luck", "luck_rk",
-              "sos_adj_em", "sos_adj_em_rk", "sos_opp_o", "sos_opp_o_rk", "sos_opp_d", "sos_opp_d_rk",
-              "ncsos_adj_em", "ncsos_adj_em_rk")
   
   df = tbl |>
     setNames(my_cols) |>
@@ -72,14 +78,29 @@ get_kenpom = function() {
   return(df)
 }
 
-kp_raw = get_kenpom() |>
-  mutate(team = trimws(str_remove_all(team, "\\d+")))
+# kp_raw = get_kenpom() |>
+#   mutate(team = trimws(str_remove_all(team, "\\d+")))
+
+kpr = suppressMessages(read_excel("kenpom_raw.xlsx"))
+
+kp_raw = kpr |>
+    setNames(my_cols) |>
+    filter(rk != "Rk" & rk != "") |>
+    mutate(rk = as.integer(rk), adj_em = as.numeric(adj_em), adj_o = as.numeric(adj_o),
+           adj_o_rk = as.integer(adj_o_rk), adj_d = as.numeric(adj_d), adj_d_rk = as.integer(adj_d_rk),
+           adj_t = as.numeric(adj_t), adj_t_rk = as.integer(adj_t_rk), luck = as.numeric(luck),
+           luck_rk = as.integer(luck_rk), sos_adj_em = as.numeric(sos_adj_em),
+           sos_adj_em_rk = as.integer(sos_adj_em_rk), sos_opp_o = as.numeric(sos_opp_o),
+           sos_opp_o_rk = as.integer(sos_opp_o_rk), sos_opp_d = as.numeric(sos_opp_d),
+           sos_opp_d_rk = as.integer(sos_opp_d_rk), ncsos_adj_em = as.numeric(ncsos_adj_em),
+           ncsos_adj_em_rk = as.integer(ncsos_adj_em_rk)) |>
+  mutate(team = str_trim(str_remove_all(team, "\\d+")))
 
 games_raw = cbd_torvik_game_box(year = 2025)
 print("Data acquisition complete")
 ```
 
-
+___
 
 ### Matching Team Names Between Data Sources
 
@@ -110,6 +131,8 @@ if (length(intersect(kp$team, torvik_teams)) == length(torvik_teams)) {
   print("Team names not matched")
 }
 ```
+
+___
 
 ### Building Master Game Results Data Set
 
@@ -173,6 +196,8 @@ game_results = home_away_teams |>
 sprintf("%s game results retrieved successfully", nrow(game_results))
 ```
 
+___
+
 ### KenPom Top 25
 
 ```{r fold_code = T}
@@ -193,6 +218,8 @@ fig_data |>
   labs(x = NULL, y = "Adj. EM",
        title = "KenPom Top 25")
 ```
+
+___
 
 ### Chad's NPR Metric
 
@@ -245,31 +272,35 @@ team_npr = data.frame(team = all_teams) |>
          ovr_npr = off_npr + def_npr) |>
   arrange(desc(ovr_npr))
 
-inner_join(
-  x = team_npr |> select(team, ovr_npr) |> mutate(npr_rk = rank(-ovr_npr)),
-  y = kp |> select(team, kp_rank = rk, adj_em),
-  by = "team"
-) |>
+inner_join(x = team_npr |> select(team, ovr_npr) |> mutate(npr_rk = rank(-ovr_npr)),
+           y = kp |> select(team, kp_rank = rk, adj_em),
+           by = "team") |>
   filter(kp_rank <= 25) |>
   ggplot(aes(ovr_npr, adj_em)) +
   geom_point(size = 2, col = "#556d56", shape = "square") +
   geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dashed") +
-  ggrepel::geom_text_repel(aes(label = substr(team, 1, 4)), size = 3, max.overlaps = 25) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3, max.overlaps = 25) +
   scale_x_continuous(breaks = seq(0, 20, by = 0.5)) +
   scale_y_continuous(breaks = seq(0, 50, by = 2)) +
   labs(x = "Chad's Naive Performance Rating (NPR)", y = "KenPom's Net Adj. Efficiency Rating",
        title = "KenPom Top 25 + NPR", subtitle = "Teams above/below dashed line are better/worse than my NPR metric per KenPom")
 ```
+```{r}
+bubble_teams = c("North Carolina", "West Virginia", "Indiana", "Xavier", "Texas", "Ohio St.", "Boise St.", "San Diego St.")
 
+team_npr |>
+  mutate(npr_rank = rank(-ovr_npr)) |>
+  distinct(team, ovr_npr, npr_rank) |>
+  filter(team %in% bubble_teams)
+```
+
+___
 
 ### Building Data for Modeling
 
 ```{r fold_code = T}
 kp_refined = kp |>
-  select(-contains("rk"), -conf) |>
-  separate(w_l, into = c("wins", "losses"), sep = "-", remove = T, convert = T) |>
-  mutate(win_pct = wins / (wins + losses)) |>
-  select(-c(wins, losses))
+  select(-contains("rk"), -conf)
 
 kp_names = names(kp_refined)
 
@@ -290,6 +321,8 @@ modeling_results = game_results |>
 sprintf("Modeling data: %s games, %s variables", nrow(modeling_results), ncol(modeling_results) - 1)
 ```
 
+___
+
 ### Matchup Data Generation Function
 
 ```{r fold_code = T}
@@ -304,6 +337,8 @@ generate_matchup_data = function(home_team, away_team) {
 # example output
 generate_matchup_data(home_team = "North Carolina", away_team = "Duke")
 ```
+
+___
 
 ### Modeling
 
@@ -323,6 +358,8 @@ recall = conf_matrix[2, 2] / sum(conf_matrix[2, ])
 f1_score = round(2 * precision * recall / (precision + recall) * 100, 2)
 sprintf("Random forest F1: %s%%", f1_score)
 ```
+
+___
 
 ### Generating Game Prediction Functions
 
@@ -350,7 +387,7 @@ neutral_predict = function(home_team, away_team) {
   probs2 = predict(rf_model, other_data, type = "prob")[1]
   ovr = round(mean(c(probs1, probs2)) * 100, 1)
   if (ovr == 50) {
-    return("Dead even")
+    return("Toss up")
   } else if (ovr > 50) {
     return(sprintf("%s def. %s (%s%%)", home_team, away_team, ovr))
   } else if (ovr < 50) {
@@ -359,29 +396,34 @@ neutral_predict = function(home_team, away_team) {
 }
 ```
 
-### Game Predictor
+___
+
+### Predicting Sweet 16 and Beyond
 
 ```{r echo = F}
-make_game_prediction(home_team = "North Carolina", away_team = "N.C. State")
+print("Sweet 16")
+neutral_predict(home_team = "Auburn", away_team = "Michigan")
+neutral_predict(home_team = "Mississippi", away_team = "Michigan St.")
+neutral_predict(home_team = "Florida", away_team = "Maryland")
+neutral_predict(home_team = "Texas Tech", away_team = "Arkansas")
+neutral_predict(home_team = "Duke", away_team = "Arizona")
+neutral_predict(home_team = "BYU", away_team = "Alabama")
+neutral_predict(home_team = "Houston", away_team = "Purdue")
+neutral_predict(home_team = "Kentucky", away_team = "Tennessee")
+print("------------------------------------------------------------")
+print("Elite 8")
+neutral_predict(home_team = "Auburn", away_team = "Mississippi")
+neutral_predict(home_team = "Florida", away_team = "Texas Tech")
+neutral_predict(home_team = "Duke", away_team = "Alabama")
+neutral_predict(home_team = "Houston", away_team = "Kentucky")
+print("----------------------------------")
+print("Final Four")
+neutral_predict(home_team = "Auburn", away_team = "Florida")
+neutral_predict(home_team = "Alabama", away_team = "Houston")
+print("----------------------------------------")
+print("National Championship")
+neutral_predict(home_team = "Auburn", away_team = "Alabama")
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

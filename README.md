@@ -7,17 +7,16 @@ View Code
 </summary>
 
 ``` r
+my_cols = c(
+  "rk", "team", "conf", "w_l", "adj_em", "adj_o", "adj_o_rk", "adj_d", "adj_d_rk",
+  "adj_t","adj_t_rk", "luck", "luck_rk", "sos_adj_em", "sos_adj_em_rk", "sos_opp_o",
+  "sos_opp_o_rk", "sos_opp_d", "sos_opp_d_rk", "ncsos_adj_em", "ncsos_adj_em_rk"
+)
+
 get_kenpom = function() {
   url = "https://kenpom.com/"
   webpage = read_html(url)
   tbl = (webpage |> html_nodes(css = "#data-area") |> html_table())[[1]]
-  
-  my_cols = c("rk", "team", "conf", "w_l", "adj_em",
-              "adj_o", "adj_o_rk", "adj_d", "adj_d_rk",
-              "adj_t", "adj_t_rk",
-              "luck", "luck_rk",
-              "sos_adj_em", "sos_adj_em_rk", "sos_opp_o", "sos_opp_o_rk", "sos_opp_d", "sos_opp_d_rk",
-              "ncsos_adj_em", "ncsos_adj_em_rk")
   
   df = tbl |>
     setNames(my_cols) |>
@@ -34,8 +33,23 @@ get_kenpom = function() {
   return(df)
 }
 
-kp_raw = get_kenpom() |>
-  mutate(team = trimws(str_remove_all(team, "\\d+")))
+# kp_raw = get_kenpom() |>
+#   mutate(team = trimws(str_remove_all(team, "\\d+")))
+
+kpr = suppressMessages(read_excel("kenpom_raw.xlsx"))
+
+kp_raw = kpr |>
+    setNames(my_cols) |>
+    filter(rk != "Rk" & rk != "") |>
+    mutate(rk = as.integer(rk), adj_em = as.numeric(adj_em), adj_o = as.numeric(adj_o),
+           adj_o_rk = as.integer(adj_o_rk), adj_d = as.numeric(adj_d), adj_d_rk = as.integer(adj_d_rk),
+           adj_t = as.numeric(adj_t), adj_t_rk = as.integer(adj_t_rk), luck = as.numeric(luck),
+           luck_rk = as.integer(luck_rk), sos_adj_em = as.numeric(sos_adj_em),
+           sos_adj_em_rk = as.integer(sos_adj_em_rk), sos_opp_o = as.numeric(sos_opp_o),
+           sos_opp_o_rk = as.integer(sos_opp_o_rk), sos_opp_d = as.numeric(sos_opp_d),
+           sos_opp_d_rk = as.integer(sos_opp_d_rk), ncsos_adj_em = as.numeric(ncsos_adj_em),
+           ncsos_adj_em_rk = as.integer(ncsos_adj_em_rk)) |>
+  mutate(team = str_trim(str_remove_all(team, "\\d+")))
 
 games_raw = cbd_torvik_game_box(year = 2025)
 print("Data acquisition complete")
@@ -44,6 +58,8 @@ print("Data acquisition complete")
 </details>
 
     ## [1] "Data acquisition complete"
+
+------------------------------------------------------------------------
 
 ### Matching Team Names Between Data Sources
 
@@ -83,6 +99,8 @@ if (length(intersect(kp$team, torvik_teams)) == length(torvik_teams)) {
 </details>
 
     ## [1] "Team names matched successfully"
+
+------------------------------------------------------------------------
 
 ### Building Master Game Results Data Set
 
@@ -153,7 +171,9 @@ sprintf("%s game results retrieved successfully", nrow(game_results))
 
 </details>
 
-    ## [1] "4474 game results retrieved successfully"
+    ## [1] "5722 game results retrieved successfully"
+
+------------------------------------------------------------------------
 
 ### KenPom Top 25
 
@@ -183,7 +203,9 @@ fig_data |>
 
 </details>
 
-![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+------------------------------------------------------------------------
 
 ### Chad’s NPR Metric
 
@@ -241,16 +263,14 @@ team_npr = data.frame(team = all_teams) |>
          ovr_npr = off_npr + def_npr) |>
   arrange(desc(ovr_npr))
 
-inner_join(
-  x = team_npr |> select(team, ovr_npr) |> mutate(npr_rk = rank(-ovr_npr)),
-  y = kp |> select(team, kp_rank = rk, adj_em),
-  by = "team"
-) |>
+inner_join(x = team_npr |> select(team, ovr_npr) |> mutate(npr_rk = rank(-ovr_npr)),
+           y = kp |> select(team, kp_rank = rk, adj_em),
+           by = "team") |>
   filter(kp_rank <= 25) |>
   ggplot(aes(ovr_npr, adj_em)) +
   geom_point(size = 2, col = "#556d56", shape = "square") +
   geom_line(stat = "smooth", method = "lm", formula = y ~ x, linetype = "dashed") +
-  ggrepel::geom_text_repel(aes(label = substr(team, 1, 4)), size = 3, max.overlaps = 25) +
+  ggrepel::geom_text_repel(aes(label = team), size = 3, max.overlaps = 25) +
   scale_x_continuous(breaks = seq(0, 20, by = 0.5)) +
   scale_y_continuous(breaks = seq(0, 50, by = 2)) +
   labs(x = "Chad's Naive Performance Rating (NPR)", y = "KenPom's Net Adj. Efficiency Rating",
@@ -259,7 +279,28 @@ inner_join(
 
 </details>
 
-![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+``` r
+bubble_teams = c("North Carolina", "West Virginia", "Indiana", "Xavier", "Texas", "Ohio St.", "Boise St.", "San Diego St.")
+
+team_npr |>
+  mutate(npr_rank = rank(-ovr_npr)) |>
+  distinct(team, ovr_npr, npr_rank) |>
+  filter(team %in% bubble_teams)
+```
+
+    ##             team ovr_npr npr_rank
+    ## 1 North Carolina   5.213       33
+    ## 2      Boise St.   4.676       42
+    ## 3       Ohio St.   4.589       45
+    ## 4         Xavier   4.504       47
+    ## 5          Texas   4.033       55
+    ## 6  West Virginia   3.750       60
+    ## 7  San Diego St.   3.621       63
+    ## 8        Indiana   3.499       67
+
+------------------------------------------------------------------------
 
 ### Building Data for Modeling
 
@@ -270,10 +311,7 @@ View Code
 
 ``` r
 kp_refined = kp |>
-  select(-contains("rk"), -conf) |>
-  separate(w_l, into = c("wins", "losses"), sep = "-", remove = T, convert = T) |>
-  mutate(win_pct = wins / (wins + losses)) |>
-  select(-c(wins, losses))
+  select(-contains("rk"), -conf)
 
 kp_names = names(kp_refined)
 
@@ -296,7 +334,9 @@ sprintf("Modeling data: %s games, %s variables", nrow(modeling_results), ncol(mo
 
 </details>
 
-    ## [1] "Modeling data: 4474 games, 20 variables"
+    ## [1] "Modeling data: 5722 games, 20 variables"
+
+------------------------------------------------------------------------
 
 ### Matchup Data Generation Function
 
@@ -320,14 +360,16 @@ generate_matchup_data(home_team = "North Carolina", away_team = "Duke")
 
 </details>
 
-    ##   home_adj_em home_adj_o home_adj_d home_adj_t home_luck home_sos_adj_em
-    ## 1       15.96      117.1      101.1       71.2    -0.009           12.87
-    ##   home_sos_opp_o home_sos_opp_d home_ncsos_adj_em home_win_pct away_adj_em
-    ## 1          114.9          102.1             13.28    0.5769231        36.5
-    ##   away_adj_o away_adj_d away_adj_t away_luck away_sos_adj_em away_sos_opp_o
-    ## 1      127.5         91       65.6     -0.04            8.34          112.8
-    ##   away_sos_opp_d away_ncsos_adj_em away_win_pct
-    ## 1          104.4               7.2    0.8846154
+    ##   home_w_l home_adj_em home_adj_o home_adj_d home_adj_t home_luck
+    ## 1    22-13       19.55      118.9       99.3       70.4    -0.019
+    ##   home_sos_adj_em home_sos_opp_o home_sos_opp_d home_ncsos_adj_em away_w_l
+    ## 1           12.18          113.3          101.2             13.34     31-3
+    ##   away_adj_em away_adj_o away_adj_d away_adj_t away_luck away_sos_adj_em
+    ## 1       38.16        128       89.8       65.7    -0.019           10.03
+    ##   away_sos_opp_o away_sos_opp_d away_ncsos_adj_em
+    ## 1          112.4          102.4              9.31
+
+------------------------------------------------------------------------
 
 ### Modeling
 
@@ -350,7 +392,7 @@ sprintf("Random forest accuracy: %s%%", accuracy)
 
 </details>
 
-    ## [1] "Random forest accuracy: 75.8%"
+    ## [1] "Random forest accuracy: 71.29%"
 
 <details>
 <summary>
@@ -367,7 +409,9 @@ sprintf("Random forest F1: %s%%", f1_score)
 
 </details>
 
-    ## [1] "Random forest F1: 82.17%"
+    ## [1] "Random forest F1: 77.78%"
+
+------------------------------------------------------------------------
 
 ### Generating Game Prediction Functions
 
@@ -400,7 +444,7 @@ neutral_predict = function(home_team, away_team) {
   probs2 = predict(rf_model, other_data, type = "prob")[1]
   ovr = round(mean(c(probs1, probs2)) * 100, 1)
   if (ovr == 50) {
-    return("Dead even")
+    return("Toss up")
   } else if (ovr > 50) {
     return(sprintf("%s def. %s (%s%%)", home_team, away_team, ovr))
   } else if (ovr < 50) {
@@ -411,6 +455,50 @@ neutral_predict = function(home_team, away_team) {
 
 </details>
 
-### Game Predictor
+------------------------------------------------------------------------
 
-    ## [1] "North Carolina def. N.C. State (93.4%)"
+### Predicting Sweet 16 and Beyond
+
+    ## [1] "Sweet 16"
+
+    ## [1] "Auburn def. Michigan (64.5%)"
+
+    ## [1] "Mississippi def. Michigan St. (53%)"
+
+    ## [1] "Florida def. Maryland (53.5%)"
+
+    ## [1] "Texas Tech def. Arkansas (55.9%)"
+
+    ## [1] "Duke def. Arizona (53.8%)"
+
+    ## [1] "Alabama def. BYU (57.8%)"
+
+    ## [1] "Houston def. Purdue (62.8%)"
+
+    ## [1] "Kentucky def. Tennessee (54.4%)"
+
+    ## [1] "------------------------------------------------------------"
+
+    ## [1] "Elite 8"
+
+    ## [1] "Auburn def. Mississippi (72%)"
+
+    ## [1] "Florida def. Texas Tech (54.6%)"
+
+    ## [1] "Alabama def. Duke (51.6%)"
+
+    ## [1] "Houston def. Kentucky (52.1%)"
+
+    ## [1] "----------------------------------"
+
+    ## [1] "Final Four"
+
+    ## [1] "Auburn def. Florida (51.9%)"
+
+    ## [1] "Alabama def. Houston (52.7%)"
+
+    ## [1] "----------------------------------------"
+
+    ## [1] "National Championship"
+
+    ## [1] "Auburn def. Alabama (57.1%)"
