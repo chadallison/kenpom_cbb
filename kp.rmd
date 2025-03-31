@@ -398,31 +398,15 @@ neutral_predict = function(home_team, away_team) {
 
 ___
 
-### Predicting Sweet 16 and Beyond
+### Predicting Final Four and National Championship
 
 ```{r echo = F}
-print("Sweet 16")
-neutral_predict(home_team = "Auburn", away_team = "Michigan")
-neutral_predict(home_team = "Mississippi", away_team = "Michigan St.")
-neutral_predict(home_team = "Florida", away_team = "Maryland")
-neutral_predict(home_team = "Texas Tech", away_team = "Arkansas")
-neutral_predict(home_team = "Duke", away_team = "Arizona")
-neutral_predict(home_team = "BYU", away_team = "Alabama")
-neutral_predict(home_team = "Houston", away_team = "Purdue")
-neutral_predict(home_team = "Kentucky", away_team = "Tennessee")
-print("------------------------------------------------------------")
-print("Elite 8")
-neutral_predict(home_team = "Auburn", away_team = "Mississippi")
-neutral_predict(home_team = "Florida", away_team = "Texas Tech")
-neutral_predict(home_team = "Duke", away_team = "Alabama")
-neutral_predict(home_team = "Houston", away_team = "Kentucky")
-print("----------------------------------")
 print("Final Four")
 neutral_predict(home_team = "Auburn", away_team = "Florida")
-neutral_predict(home_team = "Alabama", away_team = "Houston")
+neutral_predict(home_team = "Duke", away_team = "Houston")
 print("----------------------------------------")
 print("National Championship")
-neutral_predict(home_team = "Auburn", away_team = "Alabama")
+neutral_predict(home_team = "Auburn", away_team = "Houston")
 ```
 
 

@@ -171,7 +171,7 @@ sprintf("%s game results retrieved successfully", nrow(game_results))
 
 </details>
 
-    ## [1] "5722 game results retrieved successfully"
+    ## [1] "5742 game results retrieved successfully"
 
 ------------------------------------------------------------------------
 
@@ -291,14 +291,14 @@ team_npr |>
 ```
 
     ##             team ovr_npr npr_rank
-    ## 1 North Carolina   5.213       33
-    ## 2      Boise St.   4.676       42
-    ## 3       Ohio St.   4.589       45
-    ## 4         Xavier   4.504       47
-    ## 5          Texas   4.033       55
-    ## 6  West Virginia   3.750       60
-    ## 7  San Diego St.   3.621       63
-    ## 8        Indiana   3.499       67
+    ## 1 North Carolina   5.180       33
+    ## 2      Boise St.   4.676       41
+    ## 3       Ohio St.   4.537       46
+    ## 4         Xavier   4.495       48
+    ## 5          Texas   3.983       55
+    ## 6  West Virginia   3.685       60
+    ## 7  San Diego St.   3.616       62
+    ## 8        Indiana   3.465       68
 
 ------------------------------------------------------------------------
 
@@ -334,7 +334,7 @@ sprintf("Modeling data: %s games, %s variables", nrow(modeling_results), ncol(mo
 
 </details>
 
-    ## [1] "Modeling data: 5722 games, 20 variables"
+    ## [1] "Modeling data: 5742 games, 20 variables"
 
 ------------------------------------------------------------------------
 
@@ -392,7 +392,7 @@ sprintf("Random forest accuracy: %s%%", accuracy)
 
 </details>
 
-    ## [1] "Random forest accuracy: 71.29%"
+    ## [1] "Random forest accuracy: 72.78%"
 
 <details>
 <summary>
@@ -409,7 +409,7 @@ sprintf("Random forest F1: %s%%", f1_score)
 
 </details>
 
-    ## [1] "Random forest F1: 77.78%"
+    ## [1] "Random forest F1: 79.2%"
 
 ------------------------------------------------------------------------
 
@@ -457,48 +457,16 @@ neutral_predict = function(home_team, away_team) {
 
 ------------------------------------------------------------------------
 
-### Predicting Sweet 16 and Beyond
-
-    ## [1] "Sweet 16"
-
-    ## [1] "Auburn def. Michigan (64.5%)"
-
-    ## [1] "Mississippi def. Michigan St. (53%)"
-
-    ## [1] "Florida def. Maryland (53.5%)"
-
-    ## [1] "Texas Tech def. Arkansas (55.9%)"
-
-    ## [1] "Duke def. Arizona (53.8%)"
-
-    ## [1] "Alabama def. BYU (57.8%)"
-
-    ## [1] "Houston def. Purdue (62.8%)"
-
-    ## [1] "Kentucky def. Tennessee (54.4%)"
-
-    ## [1] "------------------------------------------------------------"
-
-    ## [1] "Elite 8"
-
-    ## [1] "Auburn def. Mississippi (72%)"
-
-    ## [1] "Florida def. Texas Tech (54.6%)"
-
-    ## [1] "Alabama def. Duke (51.6%)"
-
-    ## [1] "Houston def. Kentucky (52.1%)"
-
-    ## [1] "----------------------------------"
+### Predicting Final Four and National Championship
 
     ## [1] "Final Four"
 
-    ## [1] "Auburn def. Florida (51.9%)"
+    ## [1] "Auburn def. Florida (55.8%)"
 
-    ## [1] "Alabama def. Houston (52.7%)"
+    ## [1] "Houston def. Duke (51.2%)"
 
     ## [1] "----------------------------------------"
 
     ## [1] "National Championship"
 
-    ## [1] "Auburn def. Alabama (57.1%)"
+    ## [1] "Auburn def. Houston (52.8%)"
